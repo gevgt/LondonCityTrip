@@ -1,10 +1,5 @@
-import location
+from city_trip import CityTrip
 
-obj = location.Pub(
-    'The Seven Stars',
-    location.Coordinates(51.5149, -0.1137),
-    0,
-    True,
-    False,
-    6
-)
+obj = CityTrip()
+obj.load_excel()
+obj.print_map_with_locations()
