@@ -2,7 +2,6 @@ import pandas as pd
 import os
 from location import *
 from matplotlib import pyplot as plt, image as mpimg
-from matplotlib.offsetbox import TextArea, DrawingArea, OffsetImage, AnnotationBbox
 
 class CityTrip:
 
@@ -36,6 +35,15 @@ class CityTrip:
                 )
             )
 
+        for _, row in locations_df['attractions'].iterrows():
+            self.locations.append(
+                Attractions(
+                    name = row['name'],
+                    coordinates =  Coordinates(self.str_to_float(row['laengengrad']), self.str_to_float(row['breitengrad'])),
+                    price = row['price']
+                )
+            )
+
 
     def print_map_with_locations(self):
         london_map = mpimg.imread('london_map.png')
@@ -49,5 +57,5 @@ class CityTrip:
             y = abs((location.coordinates.laengengrad - 51.5493) * (1722 / 0.0725))
             plt.scatter(x, y, color=location.color, s=40)
             plt.annotate(location.name, (x, y), textcoords="offset points", xytext=(0,4), ha='center', fontsize=3, color="black", weight='bold')
-        plt.show()
-        f.savefig('map.pdf')
+        plt.axis('off')
+        f.savefig('map.pdf', bbox_inches='tight')

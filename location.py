@@ -35,3 +35,11 @@ class Restaurant(Location):
         self.price_category = price_category
         self.lunch_dinner   = lunch_dinner
         self.color          = 'green'
+
+
+class Attractions(Location):
+
+    def __init__(self, name: str, coordinates: Coordinates, price: float):
+        super().__init__(name, coordinates)
+        self.price = price
+        self.color = 'orange'
