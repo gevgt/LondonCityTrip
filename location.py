@@ -8,6 +8,7 @@ class Location:
         self.coordinates    = coordinates
         self.day_label      = None
         self.part_of_tour   = True
+        self.color          = 'grey'
 
 
 class Pub(Location):
@@ -16,7 +17,7 @@ class Pub(Location):
         super().__init__(name, coordinates)
         self.dining             = dining
         self.price_per_guinnes  = price_per_guinnes
-        self.color              = 'red'
+        self.marker             = '*'
 
 
 class Breakfast(Location):
@@ -25,7 +26,7 @@ class Breakfast(Location):
         super().__init__(name, coordinates)
         self.price_per_full_english_breakfast   = price_per_full_english_breakfast
         self.opening_hour                       = opening_hour
-        self.color                              = 'blue'
+        self.marker                             = 'D'
 
 
 class Restaurant(Location):
@@ -34,12 +35,12 @@ class Restaurant(Location):
         super().__init__(name, coordinates)
         self.price_category = price_category
         self.lunch_dinner   = lunch_dinner
-        self.color          = 'green'
+        self.marker         = 's'
 
 
 class Attractions(Location):
 
     def __init__(self, name: str, coordinates: Coordinates, price: float):
         super().__init__(name, coordinates)
-        self.price = price
-        self.color = 'orange'
+        self.price  = price
+        self.marker = 'o'

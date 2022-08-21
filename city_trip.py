@@ -1,25 +1,165 @@
 import pandas as pd
 import os
 from location import *
-from matplotlib import pyplot as plt, image as mpimg
+from matplotlib import pyplot as plt, image as mpimg, use
+use('Agg')
+from sklearn.cluster import KMeans
+from collections import OrderedDict
+import json
+
+COLORS = {
+    0: 'red',
+    1: 'blue',
+    2: 'orange',
+    3: 'green',
+    4: 'yellow',
+    5: 'purple',
+    6: 'pink'
+}
+
+COLOR_TO_DAY = {
+    'red'   : 0,
+    'blue'  : 1,
+    'orange': 2,
+    'green' : 3,
+    'yellow': 4,
+    'purple': 5,
+    'pink'  : 6
+}
 
 class CityTrip:
 
     def __init__(self):
-        self.locations = []
+        self.locations      = []
+        self.days           = None
+        self.__load_excel()
+        self.locations_dict = dict([(loc.name, loc) for loc in self.locations])
 
-    @staticmethod
-    def str_to_float(str):
-        return float(str.replace(',', '.'))
+    def assign_location_to_day(self, day_str: str, *args: str):
+        if not self.__check_input_day(day_str):
+            print('Wrong Input (day)')
+            return
+        day = COLOR_TO_DAY[day_str]
+        for location_name in args:
+            if not self.__check_input_locations(location_name):
+                print('Wrong Input (location)')
+                return
+            self.locations_dict[location_name].day_label    = day
+            self.locations_dict[location_name].color        = COLORS[day]
+        self.__write_planned_days_to_txt()
+        self.save_map_with_all_locations()
 
-    def load_excel(self):
+    def count_locations_for_day(self, day: str):
+        print()
+        day = COLOR_TO_DAY[day]
+        dict_w_location_count = OrderedDict([(loc_type, 0) for loc_type in sorted(list(set(subclass.__name__ for subclass in Location.__subclasses__())))])
+        for location in self.days[day]:
+            dict_w_location_count[location.__class__.__name__] += 1
+
+        for key in dict_w_location_count:
+            print("{: <30} {: <10}".format(f'{key}', f'{dict_w_location_count[key]}'))
+
+        print(f'\nSum: {len(self.days[day])}')
+
+    def is_something_missing(self):
+        all_location_types = set([subclass.__name__ for subclass in Location.__subclasses__()])
+        for day in self.days:
+            available_location_types    = set([location.__class__.__name__ for location in day])
+            missing_location_types      = all_location_types.difference(available_location_types)
+            if missing_location_types:
+                print(f'Day {day[0].color.upper()}:')
+                [print(mlt) for mlt in missing_location_types]
+            print('\n')
+
+    def merge_days(self, day1: str, day2: str):
+        if not self.__check_input_day(day1) or not self.__check_input_day(day2):
+            print('Wrong input')
+            return
+        day1        = COLOR_TO_DAY[day1]
+        day2        = COLOR_TO_DAY[day2]
+        day1, day2  = self.__sort_days(day1, day2)
+
+        for location in self.days[day2]:
+            location.day_label = day1
+            location.color     = COLORS[day1]
+            self.days[day1].append(location)
+
+        self.days[day2] = []
+        self.days       = [day for day in self.days if len(day) > 0]
+
+        for i, day in enumerate(self.days):
+            for location in day:
+                if location.day_label == i:
+                    break
+                location.day_label = i
+                location.color     = COLORS[location.day_label]
+
+        self.__write_planned_days_to_txt()
+        self.save_map_with_all_locations()
+
+    def plan_the_days(self, n_days_to_plan):
+        locations_df    = pd.DataFrame([(loc.name, loc.coordinates.breitengrad, loc.coordinates.laengengrad) for loc in self.locations], columns=['name', 'breitengrad', 'laengengrad']).set_index('name')
+        inputs          = locations_df.values
+        kmeans          = KMeans(n_clusters=n_days_to_plan, random_state=0).fit(inputs)
+
+        for location_name, label in zip(locations_df.index, kmeans.labels_):
+            self.locations_dict[location_name].day_label    = label
+            self.locations_dict[location_name].color        = COLORS[label]
+
+        self.__write_planned_days_to_txt()
+        self.save_map_with_all_locations()
+
+    def print_infos_of_location(self, *args: str):
+        return  # todo: Fertig machen
+
+    def save_map_with_all_locations(self):
+        self.__print_map_with_locations(self.locations, save_map_name='all_locations')
+
+    def save_map_with_certain_day(self, *args):
+        for day_number in args:
+            self.__print_map_with_locations(self.days[COLOR_TO_DAY[day_number]], save_map_name=f'day_{day_number}')
+
+    def split_days(self, day: str):
+        if not self.__check_input_day(day):
+            print('Wrong input')
+            return
+        day                 = COLOR_TO_DAY[day]
+        locations_df        = pd.DataFrame([(loc.name, loc.coordinates.breitengrad, loc.coordinates.laengengrad) for loc in self.days[day]], columns=['name', 'breitengrad', 'laengengrad']).set_index('name')
+        inputs              = locations_df.values
+        kmeans              = KMeans(n_clusters=2, random_state=0).fit(inputs)
+        self.days[day]  = []
+        self.days.append([])
+
+        for location_name, label in zip(locations_df.index, kmeans.labels_):
+            if label == 1:
+                self.locations_dict[location_name].day_label    = len(self.days) - 1
+                self.locations_dict[location_name].color         = COLORS[self.locations_dict[location_name].day_label]
+
+        self.__write_planned_days_to_txt()
+        self.save_map_with_all_locations()
+
+    def __check_input_day(self, input_day: str):
+        available_day_colors = set([day[0].color for day in self.days])
+        if input_day in available_day_colors:
+            return True
+        else:
+            return False
+
+    def __check_input_locations(self, input_location: str):
+        available_location_names = set([location.name for location in self.locations])
+        if input_location in available_location_names:
+            return True
+        else:
+            return False
+
+    def __load_excel(self):
         locations_df = dict([(file[:file.find('.')], pd.read_csv(file, delimiter=';')) for file in os.listdir(os.curdir) if file.endswith('.csv')])
 
         for _, row in locations_df['pub'].iterrows():
             self.locations.append(
                 Pub(
                     name = row['name'],
-                    coordinates = Coordinates(self.str_to_float(row['laengengrad']), self.str_to_float(row['breitengrad'])),
+                    coordinates = Coordinates(self.__str_to_float(row['laengengrad']), self.__str_to_float(row['breitengrad'])),
                     dining = True if row['dining'] == 1 else False,
                     price_per_guinnes = row['price_per_guinnes']
                 )
@@ -29,7 +169,7 @@ class CityTrip:
             self.locations.append(
                 Breakfast(
                     name = row['name'],
-                    coordinates =  Coordinates(self.str_to_float(row['laengengrad']), self.str_to_float(row['breitengrad'])),
+                    coordinates =  Coordinates(self.__str_to_float(row['laengengrad']), self.__str_to_float(row['breitengrad'])),
                     price_per_full_english_breakfast = row['price_per_full_english_breakfast'],
                     opening_hour = OpeningHour(row['hour'], row['minute'])
                 )
@@ -39,23 +179,52 @@ class CityTrip:
             self.locations.append(
                 Attractions(
                     name = row['name'],
-                    coordinates =  Coordinates(self.str_to_float(row['laengengrad']), self.str_to_float(row['breitengrad'])),
+                    coordinates =  Coordinates(self.__str_to_float(row['laengengrad']), self.__str_to_float(row['breitengrad'])),
                     price = row['price']
                 )
             )
 
-
-    def print_map_with_locations(self):
+    def __print_map_with_locations(self, locations, save_map_name=None):
         london_map = mpimg.imread('london_map.png')
-
         f = plt.figure()
-
         implot = plt.imshow(london_map)
 
-        for location in self.locations:
+        for location in locations:
             x = (location.coordinates.breitengrad + 0.1941) * (2880 / 0.1944)
             y = abs((location.coordinates.laengengrad - 51.5493) * (1722 / 0.0725))
-            plt.scatter(x, y, color=location.color, s=40)
+            plt.scatter(x, y, color=location.color, s=30, marker=location.marker)
             plt.annotate(location.name, (x, y), textcoords="offset points", xytext=(0,4), ha='center', fontsize=3, color="black", weight='bold')
         plt.axis('off')
-        f.savefig('map.pdf', bbox_inches='tight')
+
+        if save_map_name:
+            f.savefig(f'{save_map_name}.pdf', bbox_inches='tight')
+
+    def __write_planned_days_to_txt(self):
+        n_days_to_plan = len(set([location.day_label for location in self.locations]))
+        self.days = [[] for _ in range(n_days_to_plan)]
+        for location in self.locations:
+            self.days[location.day_label].append(location)
+
+        with open('planned_days.txt', 'w') as f:
+            for day_n, day in enumerate(self.days):
+                line = f'Day {COLORS[day_n].upper()}:'
+                print(line)
+                f.write(line)
+                f.write('\n')
+                for location in day:
+                    line = "{: <30} {: <10}".format(f'{location.name}', f'{location.__class__.__name__}')
+                    print(line)
+                    f.write(line)
+                    f.write('\n')
+                line = '\n' * 3
+                print(line)
+                f.write(line)
+
+    @staticmethod
+    def __sort_days(day1, day2):
+        days = [day1, day2]
+        return min(days), max(days)
+
+    @staticmethod
+    def __str_to_float(str):
+        return float(str.replace(',', '.'))
