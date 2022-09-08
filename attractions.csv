@@ -1,6 +1,6 @@
 ﻿name;breitengrad;laengengrad;price
-Leadenhall Market;51,5122;-0,0834;0
-Kings Cross;51,5316;-0,1231;0
+Leadenhall Market;51,5122;-0,0834;
+Kings Cross;51,5316;-0,1231;
 Hydepark;51,5077;-0,1661;
 Borough Market;51,5055;-0,0911;
 Baker Street Filming Location;51,526;-0,1373;
@@ -8,7 +8,7 @@ Tower of London;51,5082;-0,0757;
 Tower Bridge;51,5053;-0,0754;
 London Eye;51,5034;-0,1191;
 Canary Wharf;51,5048;-0,0161;
-Shakespeare's Globe;51,5081;-0,0969;
+Shakespeares Globe;51,5081;-0,0969;
 Nottinghill;51,5122;-0,2044;
 Chinatown;51,5118;-0,1308;
 Natural History Museum;51,4966;-0,1771;
@@ -21,3 +21,6 @@ Covent Garden;51,512;-0,1228;
 Harrods;51,4995;-0,1632;
 Camden Market;51,5415;-0,1458;
 The Sherlock Holmes Museum;51,5235;-0,1584;
+House of Spells;51,5122;-0,1288;
+Harry Potter Sculpture;51,5109;-0,1304;
+St. Pancras International Station;51,5319;-0,1262;

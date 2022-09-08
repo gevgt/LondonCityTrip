@@ -30,10 +30,11 @@ COLOR_TO_DAY = {
 class CityTrip:
 
     def __init__(self):
-        self.locations      = []
-        self.days           = None
+        self.locations              = []
+        self.days                   = None
+        self.not_planned_locations  = None
         self.__load_excel()
-        self.locations_dict = dict([(loc.name, loc) for loc in self.locations])
+        self.locations_dict         = dict([(loc.name, loc) for loc in self.locations])
 
     def assign_location_to_day(self, day_str: str, *args: str):
         if not self.__check_input_day(day_str):
@@ -65,7 +66,9 @@ class CityTrip:
         all_location_types = set([subclass.__name__ for subclass in Location.__subclasses__()])
         for day in self.days:
             available_location_types    = set([location.__class__.__name__ for location in day])
-            missing_location_types      = all_location_types.difference(available_location_types)
+            pubs_and_restaurants        = [location for location in day if location.__class__.__name__ in ['Restaurant', 'Pub']]
+            missing_lunch_or_diner      = {'lunch', 'dinner'}.difference([location.lunch_dinner for location in pubs_and_restaurants])
+            missing_location_types      = all_location_types.difference(available_location_types).union(missing_lunch_or_diner)
             if missing_location_types:
                 print(f'Day {day[0].color.upper()}:')
                 [print(mlt) for mlt in missing_location_types]
@@ -119,6 +122,22 @@ class CityTrip:
         for day_number in args:
             self.__print_map_with_locations(self.days[COLOR_TO_DAY[day_number]], save_map_name=f'day_{day_number}')
 
+    def set_part_of_tour(self, location_name: str):
+        if location_name not in self.locations_dict.keys():
+            print('Wrong input')
+            return
+        self.locations_dict[location_name].part_of_tour = not self.locations_dict[location_name].part_of_tour
+        self.__write_planned_days_to_txt()
+        self.save_map_with_all_locations()
+
+    def set_lunch_dining(self, location_name: str, lunch_dinner: str):
+        if location_name not in self.locations_dict.keys() or lunch_dinner not in {'lunch', 'dinner'}:
+            print('Wrong input')
+            return
+        self.locations_dict[location_name].lunch_dinner = lunch_dinner
+        self.__write_planned_days_to_txt()
+        self.save_map_with_all_locations()
+
     def split_days(self, day: str):
         if not self.__check_input_day(day):
             print('Wrong input')
@@ -158,29 +177,39 @@ class CityTrip:
         for _, row in locations_df['pub'].iterrows():
             self.locations.append(
                 Pub(
-                    name = row['name'],
-                    coordinates = Coordinates(self.__str_to_float(row['laengengrad']), self.__str_to_float(row['breitengrad'])),
-                    dining = True if row['dining'] == 1 else False,
-                    price_per_guinnes = row['price_per_guinnes']
+                    name                = row['name'],
+                    coordinates         = Coordinates(self.__str_to_float(row['laengengrad']), self.__str_to_float(row['breitengrad'])),
+                    price_per_guinnes   = row['price_per_guinnes'],
+                    lunch_dinner        = row['lunch_dinner']
                 )
             )
 
         for _, row in locations_df['breakfast'].iterrows():
             self.locations.append(
                 Breakfast(
-                    name = row['name'],
-                    coordinates =  Coordinates(self.__str_to_float(row['laengengrad']), self.__str_to_float(row['breitengrad'])),
-                    price_per_full_english_breakfast = row['price_per_full_english_breakfast'],
-                    opening_hour = OpeningHour(row['hour'], row['minute'])
+                    name                                = row['name'],
+                    coordinates                         = Coordinates(self.__str_to_float(row['laengengrad']), self.__str_to_float(row['breitengrad'])),
+                    price_per_full_english_breakfast    = row['price_per_full_english_breakfast'],
+                    opening_hour                        = OpeningHour(row['hour'], row['minute'])
                 )
             )
 
         for _, row in locations_df['attractions'].iterrows():
             self.locations.append(
                 Attractions(
-                    name = row['name'],
-                    coordinates =  Coordinates(self.__str_to_float(row['laengengrad']), self.__str_to_float(row['breitengrad'])),
-                    price = row['price']
+                    name        = row['name'],
+                    coordinates = Coordinates(self.__str_to_float(row['laengengrad']), self.__str_to_float(row['breitengrad'])),
+                    price       = row['price']
+                )
+            )
+
+        for _, row in locations_df['restaurants'].iterrows():
+            self.locations.append(
+                Restaurant(
+                    name            = row['name'],
+                    coordinates     = Coordinates(self.__str_to_float(row['laengengrad']), self.__str_to_float(row['breitengrad'])),
+                    price_category  = row['price_category'],
+                    lunch_dinner    = row['lunch_dinner']
                 )
             )
 
@@ -192,8 +221,12 @@ class CityTrip:
         for location in locations:
             x = (location.coordinates.breitengrad + 0.1941) * (2880 / 0.1944)
             y = abs((location.coordinates.laengengrad - 51.5493) * (1722 / 0.0725))
-            plt.scatter(x, y, color=location.color, s=30, marker=location.marker)
-            plt.annotate(location.name, (x, y), textcoords="offset points", xytext=(0,4), ha='center', fontsize=3, color="black", weight='bold')
+            color = location.color if location.part_of_tour else 'grey'
+            marker_size = 25 if location.part_of_tour else 20
+            plt.scatter(x, y, color=color, s=marker_size, marker=location.marker)
+            color = 'black' if location.part_of_tour else 'grey'
+            fontsize = 3 if location.part_of_tour else 2
+            plt.annotate(location.name, (x, y), textcoords="offset points", xytext=(0,4), ha='center', fontsize=fontsize, color=color, weight='bold')
         plt.axis('off')
 
         if save_map_name:
@@ -201,18 +234,27 @@ class CityTrip:
 
     def __write_planned_days_to_txt(self):
         n_days_to_plan = len(set([location.day_label for location in self.locations]))
-        self.days = [[] for _ in range(n_days_to_plan)]
+        self.days                       = [[] for _ in range(n_days_to_plan)]
+        self.not_planned_locations    = []
         for location in self.locations:
-            self.days[location.day_label].append(location)
+            if location.part_of_tour:
+                self.days[location.day_label].append(location)
+            else:
+                self.not_planned_locations.append(location)
 
         with open('planned_days.txt', 'w') as f:
-            for day_n, day in enumerate(self.days):
+            for day_n, day in enumerate(self.days + [self.not_planned_locations]):
                 line = f'Day {COLORS[day_n].upper()}:'
+                if day_n == len(self.days):
+                    line = 'Locations that are not included in the planning of the days:'
                 print(line)
                 f.write(line)
                 f.write('\n')
                 for location in day:
-                    line = "{: <30} {: <10}".format(f'{location.name}', f'{location.__class__.__name__}')
+                    if location.__class__.__name__ in ['Restaurant', 'Pub']:
+                        line = "{: <30} {: <20} {: <10}".format(f'{location.name}', f'{location.__class__.__name__}', f'{location.lunch_dinner}')
+                    else:
+                        line = "{: <30} {: <20}".format(f'{location.name}', f'{location.__class__.__name__}')
                     print(line)
                     f.write(line)
                     f.write('\n')

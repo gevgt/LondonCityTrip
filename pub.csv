@@ -1,7 +1,8 @@
-﻿name;breitengrad;laengengrad;dining;price_per_guinnes
-The Churchill Arms;51,5069;-0,1949;0;
-The Princess Louise;51,5172;-0,1216;0;
-Exmouth Arms;51,5258;-0,1097;1;5,8
-The Old Bank of England;51,514;-0,1115;1;
-The Seven Stars;51,5149;-0,1137;1;
-The George Inn;51,5043;-0,0904;1;
+﻿name;breitengrad;laengengrad;price_per_guinnes;lunch_dinner
+The Churchill Arms;51,5069;-0,1949;;
+The Princess Louise;51,5172;-0,1216;;
+Exmouth Arms;51,5258;-0,1097;5,8;
+The Old Bank of England;51,514;-0,1115;;
+The Seven Stars;51,5149;-0,1137;;
+The George Inn;51,5043;-0,0904;;
+The Sherlock Holmes;51,5074;-0,1252;;

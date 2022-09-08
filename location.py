@@ -13,10 +13,10 @@ class Location:
 
 class Pub(Location):
 
-    def __init__(self, name: str, coordinates: Coordinates, dining: bool, price_per_guinnes: float):
+    def __init__(self, name: str, coordinates: Coordinates, price_per_guinnes: float, lunch_dinner: str):
         super().__init__(name, coordinates)
-        self.dining             = dining
         self.price_per_guinnes  = price_per_guinnes
+        self.lunch_dinner       = lunch_dinner
         self.marker             = '*'
 
 
